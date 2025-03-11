@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import { useRouter } from 'next/navigation';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import styles from '../styles/Form.module.css';
@@ -86,7 +87,8 @@ const schema = yup.object().shape({
   consent: yup.boolean().oneOf([true], 'You must agree to the terms'),
 });
 
-const ReportIssueForm = () => {
+export default function ReportIssueForm() {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
   const [snackbar, setSnackbar] = useState({
@@ -144,11 +146,8 @@ const ReportIssueForm = () => {
       const result = await response.json();
 
       if (response.ok) {
-        setSubmitStatus({
-          type: 'success',
-          message: `Issue reported successfully. Ticket number: ${result.ticketNumber}`,
-        });
-        reset();
+        // Redirect to success page with ticket number
+        router.push(`/success?ticket=${result.ticketNumber}`);
       } else {
         throw new Error(result.error || 'Failed to submit issue');
       }
@@ -583,5 +582,3 @@ const ReportIssueForm = () => {
     </div>
   );
 };
-
-export default ReportIssueForm;
