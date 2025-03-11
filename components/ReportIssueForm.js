@@ -88,7 +88,6 @@ const schema = yup.object().shape({
 });
 
 export default function ReportIssueForm() {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
   const [snackbar, setSnackbar] = useState({
@@ -146,8 +145,8 @@ export default function ReportIssueForm() {
       const result = await response.json();
 
       if (response.ok) {
-        // Redirect to success page with ticket number
-        router.push(`/success?ticket=${result.ticketNumber}`);
+        // Use window.location for client-side navigation
+        window.location.href = `/success?ticket=${result.ticketNumber}`;
       } else {
         throw new Error(result.error || 'Failed to submit issue');
       }
