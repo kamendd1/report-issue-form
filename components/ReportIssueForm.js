@@ -24,9 +24,9 @@ const issueTypes = [
 
 const operators = [
   { label: 'Select an operator', value: '' },
-  { label: 'RO', value: 'RO' },
-  { label: 'LT', value: 'LT' },
-  { label: 'BG', value: 'BG' },
+  { label: 'Eldrive Bulgaria', value: 'BG' },
+  { label: 'Eldrive Romania', value: 'RO' },
+  { label: 'Eldrive Lithuania', value: 'LT' },
 ];
 
 // Helper function to check if issue type requires charger info
@@ -100,8 +100,9 @@ export default function ReportIssueForm() {
     control,
     handleSubmit,
     formState: { errors },
-    reset,
     watch,
+    setValue,
+    reset,
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
@@ -124,6 +125,28 @@ export default function ReportIssueForm() {
   
   // Watch the issueType to conditionally show fields
   const selectedIssueType = watch('issueType');
+
+  // Reset conditional fields when issue type changes
+  const handleIssueTypeChange = (e, field) => {
+    const value = e.target.value;
+    field.onChange(value);
+
+    // Reset charger info fields if not required
+    if (!requiresChargerInfo(value)) {
+      setValue('chargerLabel', '');
+      setValue('chargerLocation', '');
+    }
+
+    // Reset connector type if not required
+    if (!requiresConnectorInfo(value)) {
+      setValue('connectorType', '');
+    }
+
+    // Reset other issue description if not "other"
+    if (value !== 'other') {
+      setValue('otherIssueDescription', '');
+    }
+  };
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
@@ -187,314 +210,288 @@ export default function ReportIssueForm() {
 
       <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className={styles.formGroup}>
+          <label htmlFor="operator">
+            Operator <span className={styles.required}>*</span>
+          </label>
           <Controller
             name="operator"
             control={control}
             render={({ field }) => (
-              <>
-                <label htmlFor="operator">
-                  Operator <span className={styles.required}>*</span>
-                </label>
-                <select
-                  {...field}
-                  id="operator"
-                  className={`${styles.select} ${errors.operator ? styles.errorInput : ''}`}
-                >
-                  {operators.map((operator) => (
-                    <option key={operator.value} value={operator.value}>
-                      {operator.label}
-                    </option>
-                  ))}
-                </select>
-              </>
+              <select
+                {...field}
+                id="operator"
+                className={`${styles.select} ${errors.operator ? styles.errorInput : ''}`}
+              >
+                {operators.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             )}
           />
           {errors.operator && <span className={styles.error}>{errors.operator.message}</span>}
+          <span className={styles.inputInstruction}>To which country operator you would like to report the issue</span>
         </div>
-        
+
         <div className={styles.formGroup}>
+          <label htmlFor="issueType">
+            Issue Type <span className={styles.required}>*</span>
+          </label>
           <Controller
             name="issueType"
             control={control}
             render={({ field }) => (
-              <>
-                <label htmlFor="issueType">
-                  Issue Type <span className={styles.required}>*</span>
-                </label>
-                <select
-                  {...field}
-                  id="issueType"
-                  className={`${styles.select} ${errors.issueType ? styles.errorInput : ''}`}
-                >
-                  <option value="">Select an issue type</option>
-                  {issueTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </>
+              <select
+                {...field}
+                id="issueType"
+                onChange={(e) => handleIssueTypeChange(e, field)}
+                className={`${styles.select} ${errors.issueType ? styles.errorInput : ''}`}
+              >
+                <option value="">Select an issue type</option>
+                {issueTypes.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
             )}
           />
           {errors.issueType && <span className={styles.error}>{errors.issueType.message}</span>}
+          <span className={styles.inputInstruction}>Select the type of issue you're experiencing</span>
         </div>
-        
-        {/* Show additional field for "Other issue" */}
+
         {selectedIssueType === 'other' && (
           <div className={styles.formGroup}>
+            <label htmlFor="otherIssueDescription">
+              Issue Description <span className={styles.required}>*</span>
+            </label>
             <Controller
               name="otherIssueDescription"
               control={control}
               render={({ field }) => (
-                <>
-                  <label htmlFor="otherIssueDescription">
-                    Please specify the issue <span className={styles.required}>*</span>
-                  </label>
-                  <textarea
-                    {...field}
-                    id="otherIssueDescription"
-                    className={`${styles.textarea} ${errors.otherIssueDescription ? styles.errorInput : ''}`}
-                    placeholder="Please provide details about your issue"
-                  />
-                </>
+                <textarea
+                  {...field}
+                  id="otherIssueDescription"
+                  className={`${styles.textarea} ${errors.otherIssueDescription ? styles.errorInput : ''}`}
+                />
               )}
             />
             {errors.otherIssueDescription && <span className={styles.error}>{errors.otherIssueDescription.message}</span>}
+            <span className={styles.inputInstruction}>Please provide details about your issue</span>
           </div>
         )}
-        
-        {/* Show charger information fields for issue types that require it */}
+
         {requiresChargerInfo(selectedIssueType) && (
           <>
-            <div className={styles.chargerInfo}>
-              This issue type requires charger information
-            </div>
-            
             <div className={styles.formGroup}>
+              <label htmlFor="chargerLabel">
+                Charger Label/ID <span className={styles.required}>*</span>
+              </label>
               <Controller
                 name="chargerLabel"
                 control={control}
                 render={({ field }) => (
-                  <>
-                    <label htmlFor="chargerLabel">
-                      Charger Label <span className={styles.required}>*</span>
-                    </label>
-                    <input
-                      {...field}
-                      type="text"
-                      id="chargerLabel"
-                      className={`${styles.input} ${errors.chargerLabel ? styles.errorInput : ''}`}
-                      placeholder="Enter the charger label (found on the charger)"
-                    />
-                  </>
+                  <input
+                    {...field}
+                    type="text"
+                    id="chargerLabel"
+                    className={`${styles.input} ${errors.chargerLabel ? styles.errorInput : ''}`}
+                  />
                 )}
               />
               {errors.chargerLabel && <span className={styles.error}>{errors.chargerLabel.message}</span>}
+              <span className={styles.inputInstruction}>Enter the label or ID of the charger (e.g., RO-123)</span>
             </div>
-            
+
             <div className={styles.formGroup}>
+              <label htmlFor="chargerLocation">
+                Charger Location <span className={styles.required}>*</span>
+              </label>
               <Controller
                 name="chargerLocation"
                 control={control}
                 render={({ field }) => (
-                  <>
-                    <label htmlFor="chargerLocation">
-                      Charger Location <span className={styles.required}>*</span>
-                    </label>
-                    <input
-                      {...field}
-                      type="text"
-                      id="chargerLocation"
-                      className={`${styles.input} ${errors.chargerLocation ? styles.errorInput : ''}`}
-                      placeholder="Enter the charger location with as much detail as possible"
-                    />
-                  </>
+                  <input
+                    {...field}
+                    type="text"
+                    id="chargerLocation"
+                    className={`${styles.input} ${errors.chargerLocation ? styles.errorInput : ''}`}
+                  />
                 )}
               />
               {errors.chargerLocation && <span className={styles.error}>{errors.chargerLocation.message}</span>}
+              <span className={styles.inputInstruction}>Enter the location of the charger (e.g., Mall parking lot, Sofia)</span>
             </div>
           </>
         )}
-        
-        {/* Show connector information field for issue types that require it */}
+
         {requiresConnectorInfo(selectedIssueType) && (
           <div className={styles.formGroup}>
+            <label htmlFor="connectorType">
+              Connector Type <span className={styles.required}>*</span>
+            </label>
             <Controller
               name="connectorType"
               control={control}
               render={({ field }) => (
-                <>
-                  <label htmlFor="connectorType">
-                    Connector Type <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    {...field}
-                    type="text"
-                    id="connectorType"
-                    className={`${styles.input} ${errors.connectorType ? styles.errorInput : ''}`}
-                    placeholder="e.g., CCS, CHAdeMO, Type 2"
-                  />
-                </>
+                <select
+                  {...field}
+                  id="connectorType"
+                  className={`${styles.select} ${errors.connectorType ? styles.errorInput : ''}`}
+                >
+                  <option value="">Select connector type</option>
+                  <option value="type2">Type 2</option>
+                  <option value="ccs">CCS</option>
+                  <option value="chademo">CHAdeMO</option>
+                </select>
               )}
             />
             {errors.connectorType && <span className={styles.error}>{errors.connectorType.message}</span>}
+            <span className={styles.inputInstruction}>Select the type of connector involved in the issue</span>
           </div>
         )}
-        
+
         <div className={styles.formGroup}>
+          <label htmlFor="name">
+            Name <span className={styles.required}>*</span>
+          </label>
           <Controller
             name="name"
             control={control}
             render={({ field }) => (
-              <>
-                <label htmlFor="name">
-                  Name <span className={styles.required}>*</span>
-                </label>
-                <input
-                  {...field}
-                  type="text"
-                  id="name"
-                  className={`${styles.input} ${errors.name ? styles.errorInput : ''}`}
-                  placeholder="Enter your name"
-                />
-              </>
+              <input
+                {...field}
+                type="text"
+                id="name"
+                className={`${styles.input} ${errors.name ? styles.errorInput : ''}`}
+              />
             )}
           />
           {errors.name && <span className={styles.error}>{errors.name.message}</span>}
+          <span className={styles.inputInstruction}>Enter your full name</span>
         </div>
-        
+
         <div className={styles.formGroup}>
+          <label htmlFor="email">
+            Email <span className={styles.required}>*</span>
+          </label>
           <Controller
             name="email"
             control={control}
             render={({ field }) => (
-              <>
-                <label htmlFor="email">
-                  Email Address <span className={styles.required}>*</span>
-                </label>
-                <input
-                  {...field}
-                  type="email"
-                  id="email"
-                  className={`${styles.input} ${errors.email ? styles.errorInput : ''}`}
-                  placeholder="Enter your email address"
-                />
-              </>
+              <input
+                {...field}
+                type="email"
+                id="email"
+                className={`${styles.input} ${errors.email ? styles.errorInput : ''}`}
+              />
             )}
           />
           {errors.email && <span className={styles.error}>{errors.email.message}</span>}
+          <span className={styles.inputInstruction}>Enter your email address for communication</span>
         </div>
-        
+
         <div className={styles.formGroup}>
+          <label htmlFor="phoneNumber">
+            Phone Number <span className={styles.required}>*</span>
+          </label>
           <Controller
             name="phoneNumber"
             control={control}
             render={({ field }) => (
-              <>
-                <label htmlFor="phoneNumber">
-                  Phone Number <span className={styles.required}>*</span>
-                </label>
-                <input
-                  {...field}
-                  type="tel"
-                  id="phoneNumber"
-                  className={`${styles.input} ${errors.phoneNumber ? styles.errorInput : ''}`}
-                  placeholder="Enter your phone number"
-                />
-              </>
+              <input
+                {...field}
+                type="tel"
+                id="phoneNumber"
+                className={`${styles.input} ${errors.phoneNumber ? styles.errorInput : ''}`}
+              />
             )}
           />
           {errors.phoneNumber && <span className={styles.error}>{errors.phoneNumber.message}</span>}
+          <span className={styles.inputInstruction}>Enter your phone number for contact purposes</span>
         </div>
-        
+
         <div className={styles.formGroup}>
+          <label htmlFor="location">
+            Location <span className={styles.required}>*</span>
+          </label>
           <Controller
             name="location"
             control={control}
             render={({ field }) => (
-              <>
-                <label htmlFor="location">
-                  Location <span className={styles.required}>*</span>
-                </label>
-                <input
-                  {...field}
-                  type="text"
-                  id="location"
-                  className={`${styles.input} ${errors.location ? styles.errorInput : ''}`}
-                  placeholder="Enter the location"
-                />
-              </>
+              <input
+                {...field}
+                type="text"
+                id="location"
+                className={`${styles.input} ${errors.location ? styles.errorInput : ''}`}
+              />
             )}
           />
           {errors.location && <span className={styles.error}>{errors.location.message}</span>}
+          <span className={styles.inputInstruction}>Enter your current location or city</span>
         </div>
-        
+
         <div className={styles.formGroup}>
+          <label htmlFor="dateOfIssue">
+            Date of Issue <span className={styles.required}>*</span>
+          </label>
           <Controller
             name="dateOfIssue"
             control={control}
             render={({ field }) => (
-              <>
-                <label htmlFor="dateOfIssue">
-                  Date of Issue <span className={styles.required}>*</span>
-                </label>
-                <input
-                  {...field}
-                  type="date"
-                  id="dateOfIssue"
-                  className={`${styles.input} ${errors.dateOfIssue ? styles.errorInput : ''}`}
-                  max={new Date().toISOString().split('T')[0]}
-                />
-              </>
+              <input
+                {...field}
+                type="date"
+                id="dateOfIssue"
+                className={`${styles.input} ${errors.dateOfIssue ? styles.errorInput : ''}`}
+                max={new Date().toISOString().split('T')[0]}
+              />
             )}
           />
           {errors.dateOfIssue && <span className={styles.error}>{errors.dateOfIssue.message}</span>}
+          <span className={styles.inputInstruction}>Select the date when the issue occurred</span>
         </div>
-        
+
         <div className={styles.formGroup}>
+          <label htmlFor="stationId">
+            Station ID <span className={styles.optional}>(optional)</span>
+          </label>
           <Controller
             name="stationId"
             control={control}
             render={({ field }) => (
-              <>
-                <label htmlFor="stationId">
-                  Station ID <span className={styles.optional}>(optional)</span>
-                </label>
-                <input
-                  {...field}
-                  type="text"
-                  id="stationId"
-                  className={styles.input}
-                  placeholder="Enter the station ID (found on a label at the station)"
-                />
-              </>
+              <input
+                {...field}
+                type="text"
+                id="stationId"
+                className={styles.input}
+              />
             )}
           />
+          <span className={styles.inputInstruction}>Enter the station ID if available (found on a label at the station)</span>
         </div>
-        
+
         <div className={styles.formGroup}>
+          <label htmlFor="description">
+            Describe the Issue <span className={styles.required}>*</span>
+          </label>
           <Controller
             name="description"
             control={control}
             render={({ field }) => (
-              <>
-                <label htmlFor="description">
-                  Describe the Issue <span className={styles.required}>*</span>
-                </label>
-                <textarea
-                  {...field}
-                  id="description"
-                  className={`${styles.textarea} ${errors.description ? styles.errorInput : ''}`}
-                  placeholder="Please provide a clear and detailed description of the problem you're experiencing"
-                  rows={4}
-                />
-                <small>The more information you give us, the easier it will be for us to diagnose and fix the issue</small>
-              </>
+              <textarea
+                {...field}
+                id="description"
+                className={`${styles.textarea} ${errors.description ? styles.errorInput : ''}`}
+                rows={4}
+              />
             )}
           />
           {errors.description && <span className={styles.error}>{errors.description.message}</span>}
+          <span className={styles.inputInstruction}>Provide a clear and detailed description of the problem you're experiencing. The more information you give us, the easier it will be for us to diagnose and fix the issue.</span>
         </div>
-        
+
         <div className={styles.formGroup}>
           <label>
             <svg 
@@ -536,26 +533,31 @@ export default function ReportIssueForm() {
               className={styles.input}
             />
           </div>
-          <small>Attach any screenshots or photos that may help illustrate the issue</small>
+          <span className={styles.inputInstruction}>Attach any screenshots or photos that may help illustrate the issue</span>
         </div>
-        
+
         <div className={styles.formGroup}>
-          <Controller
-            name="consent"
-            control={control}
-            render={({ field }) => (
-              <div className={styles.checkbox}>
+          <div className={styles.checkboxGroup}>
+            <Controller
+              name="consent"
+              control={control}
+              render={({ field }) => (
                 <input
+                  {...field}
                   type="checkbox"
                   id="consent"
+                  className={styles.checkbox}
                   checked={field.value}
                   onChange={(e) => field.onChange(e.target.checked)}
                 />
-                <label htmlFor="consent">By checking this box, you consent to Eldrive processing your personal data as described in our <a href="#" className={styles.link}>Privacy Policy</a> for the purpose of addressing your reported issue and you agree to be contacted for updates. You may withdraw your consent at any time.</label>
-              </div>
-            )}
-          />
+              )}
+            />
+            <label htmlFor="consent" className={styles.checkboxLabel}>
+              By checking this box, you consent to Eldrive processing your personal data as described in our <a href="#" className={styles.link}>Privacy Policy</a> for the purpose of addressing your reported issue.
+            </label>
+          </div>
           {errors.consent && <span className={styles.error}>{errors.consent.message}</span>}
+          <span className={`${styles.inputInstruction} ${styles.displayBlock}`}>You may withdraw your consent at any time</span>
         </div>
 
         <button
@@ -565,6 +567,12 @@ export default function ReportIssueForm() {
         >
           {isSubmitting ? 'Submitting...' : 'Submit Issue'}
         </button>
+
+        {submitStatus.type === 'error' && (
+          <div className={styles.error}>
+            {submitStatus.message}
+          </div>
+        )}
       </form>
       
       {snackbar.open && (
