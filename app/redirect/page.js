@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import styles from '../../styles/Success.module.css';
 
-export default function RedirectPage() {
+function RedirectContent() {
   const searchParams = useSearchParams();
-  // Use the same URL format as the example site, but default to eldrive://home if no URL is provided
   const redirectUrl = searchParams.get('url') || 'eldrive://home';
 
   useEffect(() => {
@@ -25,21 +24,39 @@ export default function RedirectPage() {
   }, [redirectUrl]);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <div className={styles.iconWrapper}>
-          <div className={styles.loadingSpinner}></div>
-        </div>
-        <h1 className={styles.title}>Returning to App...</h1>
-        <p className={styles.message}>
-          You are being redirected back to the Eldrive mobile application.
+    <div className={styles.card}>
+      <div className={styles.iconWrapper}>
+        <div className={styles.loadingSpinner}></div>
+      </div>
+      <h1 className={styles.title}>Returning to App...</h1>
+      <p className={styles.message}>
+        You are being redirected back to the Eldrive mobile application.
+      </p>
+      <div id="fallback-message" style={{ display: 'none' }}>
+        <p className={styles.emailNote}>
+          If the app doesn't open automatically, please manually return to the Eldrive app.
         </p>
-        <div id="fallback-message" style={{ display: 'none' }}>
-          <p className={styles.emailNote}>
-            If the app doesn't open automatically, please manually return to the Eldrive app.
+      </div>
+    </div>
+  );
+}
+
+export default function RedirectPage() {
+  return (
+    <div className={styles.container}>
+      <Suspense fallback={
+        <div className={styles.card}>
+          <div className={styles.iconWrapper}>
+            <div className={styles.loadingSpinner}></div>
+          </div>
+          <h1 className={styles.title}>Returning to App...</h1>
+          <p className={styles.message}>
+            Preparing to redirect...
           </p>
         </div>
-      </div>
+      }>
+        <RedirectContent />
+      </Suspense>
     </div>
   );
 }
