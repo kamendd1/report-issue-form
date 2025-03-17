@@ -23,7 +23,7 @@ const issueTypes = [
 ];
 
 const operators = [
-  { label: 'Select an operator', value: '' },
+  { label: 'Select a country', value: '' },
   { label: 'Eldrive Bulgaria', value: 'BG' },
   { label: 'Eldrive Romania', value: 'RO' },
   { label: 'Eldrive Lithuania', value: 'LT' },
@@ -414,7 +414,7 @@ export default function ReportIssueForm() {
       <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className={styles.formGroup}>
           <label htmlFor="operator">
-            Operator <span className={styles.required}>*</span>
+            Country <span className={styles.required}>*</span>
           </label>
           <Controller
             name="operator"
@@ -681,24 +681,26 @@ export default function ReportIssueForm() {
           <span className={styles.inputInstruction}>Select the date when the issue occurred</span>
         </div>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="stationId">
-            Station ID <span className={styles.optional}>(optional)</span>
-          </label>
-          <Controller
-            name="stationId"
-            control={control}
-            render={({ field }) => (
-              <input
-                {...field}
-                type="text"
-                id="stationId"
-                className={styles.input}
-              />
-            )}
-          />
-          <span className={styles.inputInstruction}>Enter the station ID if available (found on a label at the station)</span>
-        </div>
+        {!requiresChargerInfo(selectedIssueType) && (
+          <div className={styles.formGroup}>
+            <label htmlFor="stationId">
+              Station ID <span className={styles.optional}>(optional)</span>
+            </label>
+            <Controller
+              name="stationId"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  type="text"
+                  id="stationId"
+                  className={styles.input}
+                />
+              )}
+            />
+            <span className={styles.inputInstruction}>Enter the station ID if available (found on a label at the station)</span>
+          </div>
+        )}
 
         <div className={styles.formGroup}>
           <label htmlFor="description">

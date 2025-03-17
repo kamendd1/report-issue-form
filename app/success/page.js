@@ -26,8 +26,8 @@ function SuccessContent() {
         <p>Your ticket number: <span className={styles.ticketNumber}>#{ticketNumber || 'N/A'}</span></p>
         <p className={styles.emailNote}>A confirmation email has been sent to your email address.</p>
       </div>
-      <Link href="/" className={styles.button}>
-        Report Another Issue
+      <Link href="/redirect?url=eldrive://home" className={styles.button}>
+        Return to App
       </Link>
     </div>
   );
