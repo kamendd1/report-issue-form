@@ -269,120 +269,129 @@
 }
 
 .inputInstruction {
+  color: #666;
   font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 0.25rem;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+  margin-top: 4px;
+  display: block;
 }
 
 .displayBlock {
   display: block;
-  margin-top: 0.5rem;
+  margin-top: 8px;
 }
 
 .error {
+  color: #d32f2f;
+  font-size: 0.75rem;
+  margin-top: 4px;
   display: block;
-  color: #dc2626;
-  font-size: 0.8125rem;
-  margin-top: 0.25rem;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
-}
-
-.checkboxGroup {
+  font-weight: 500;
+  transition: all 0.2s ease;
   position: relative;
-  padding-left: 2rem;
-  margin-bottom: 0.5rem;
-  display: block;
+  padding-left: 20px;
 }
 
-.checkbox {
+.error::before {
+  content: "⚠️";
   position: absolute;
   left: 0;
-  top: 0.25rem;
-  width: 1rem;
-  height: 1rem;
-  margin: 0;
-  cursor: pointer;
-  accent-color: #2563eb;
-}
-
-.checkboxLabel {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: #1f2937;
-  display: block;
-  cursor: pointer;
-  user-select: none;
-}
-
-.link {
-  color: #2563eb;
-  text-decoration: underline;
-}
-
-.link:hover {
-  color: #1d4ed8;
+  top: 0;
 }
 
 .phoneGroup {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  grid-gap: 1.5rem;
-  gap: 1.5rem;
-  margin-bottom: 0;
-}
-
-.phoneInput {
-  padding: 0.5rem 0;
-  border: none;
-  border-bottom: 1px solid #cbd5e1;
-  border-radius: 0;
-  box-sizing: border-box;
-  font-size: 0.875rem;
-  font-weight: 400;
-  background-color: transparent;
-  color: #1e293b;
-  transition: all 0.15s ease;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+  display: flex;
+  gap: 8px;
   width: 100%;
-  box-shadow: none;
-  padding-left: 0;
-  background-color: transparent;
 }
 
-.phoneInput:focus {
-  outline: none;
-  border-bottom-color: #2563eb;
-  box-shadow: none;
+.phoneGroup .select {
+  width: 110px;
+  flex-shrink: 0;
 }
 
-.phoneInput:hover {
-  border-bottom-color: #94a3b8;
+.phoneGroup .phoneInput {
+  flex-grow: 1;
 }
 
-.phoneInput::placeholder {
-  font-size: 0.875rem;
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip .tooltipText {
+  visibility: hidden;
+  width: 200px;
+  background-color: #333;
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 8px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -100px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.tooltip .tooltipText::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
+}
+
+.tooltip:hover .tooltipText {
+  visibility: visible;
   opacity: 1;
-  color: #94a3b8;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
 }
 
-.alert {
-  padding: 0.75rem 1rem;
-  border-radius: 0.375rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  line-height: 1.5;
+.successIndicator {
+  color: #4caf50;
+  font-size: 0.75rem;
+  margin-top: 4px;
+  display: block;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
+  padding-left: 20px;
 }
 
-.alertError {
-  background-color: #fee2e2;
-  color: #b91c1c;
+.successIndicator::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 
-.alertSuccess {
-  background-color: #f0fdf4;
-  color: #166534;
+.validationProgress {
+  margin-top: 8px;
+  font-size: 0.75rem;
+}
+
+.validationItem {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.validationItem.valid::before {
+  content: "✓";
+  color: #4caf50;
+  margin-right: 8px;
+}
+
+.validationItem.invalid::before {
+  content: "✗";
+  color: #d32f2f;
+  margin-right: 8px;
 }
 
 .chargerInfo {
@@ -392,14 +401,6 @@
   color: #b91c1c;
   font-size: 0.875rem;
   font-weight: 500;
-}
-
-.errorInput {
-  border-bottom-color: #dc2626;
-}
-
-.errorInput:focus {
-  box-shadow: none;
 }
 
 .formGroup input[type="file"] {
@@ -487,4 +488,58 @@
 
 .fileInputBox:focus-within {
   border-bottom-color: #2563eb;
+}
+
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.alertError {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.alertSuccess {
+  background-color: #f0fdf4;
+  color: #166534;
+}
+
+.link {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.link:hover {
+  color: #1d4ed8;
+}
+
+.checkboxGroup {
+  position: relative;
+  padding-left: 2rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.checkbox {
+  position: absolute;
+  left: 0;
+  top: 0.25rem;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #2563eb;
+}
+
+.checkboxLabel {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #1f2937;
+  display: block;
+  cursor: pointer;
+  user-select: none;
 }

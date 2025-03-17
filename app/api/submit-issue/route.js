@@ -63,6 +63,8 @@ export async function POST(request) {
       replyTo: email,
       subject: `Issue Type (${operatorName}): ${issueTypeLabel} - Ticket #${ticketNumber}`,
       text: `
+Ticket Number: ${ticketNumber}
+
 Issue Type: ${issueTypeLabel}
 ${issueType === 'other' ? `Other Issue Description: ${otherIssueDescription || 'Not provided'}\n` : ''}
 ${chargerLabel ? `Charger Label: ${chargerLabel}\n` : ''}${chargerLocation ? `Charger Location: ${chargerLocation}\n` : ''}${connectorType ? `Connector Type: ${connectorType}\n` : ''}
@@ -77,10 +79,13 @@ Describe the Issue:
 ${description}
 
 From AMPECO
-Ticket Number: ${ticketNumber}
       `,
       html: `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background-color: #2196f3; color: white; padding: 15px; text-align: center; margin-bottom: 20px; border-radius: 4px;">
+    <h2 style="margin: 0;">Ticket #${ticketNumber}</h2>
+  </div>
+
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
     <tr>
       <td style="padding: 8px; border-bottom: 1px solid #eee; width: 150px;"><strong>Issue Type:</strong></td>
@@ -147,8 +152,7 @@ Ticket Number: ${ticketNumber}
   
   <div style="margin-top: 20px; padding: 10px; border-left: 4px solid #2196f3; background-color: #e3f2fd;">
     <p style="margin: 0; font-size: 14px;">
-      <strong>From AMPECO</strong><br>
-      Ticket Number: ${ticketNumber}
+      <strong>From AMPECO</strong>
     </p>
   </div>
 </div>

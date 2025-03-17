@@ -51,6 +51,31 @@ const requiresConnectorInfo = (type) => {
   ].includes(type);
 };
 
+// Country codes for phone input
+const COUNTRY_CODES = {
+  BG: {
+    code: '+359',
+    pattern: '^[0-9]{9}$',
+    example: '888123456',
+    flag: '🇧🇬',
+    name: 'Bulgaria'
+  },
+  RO: {
+    code: '+40',
+    pattern: '^[0-9]{9}$',
+    example: '712345678',
+    flag: '🇷🇴',
+    name: 'Romania'
+  },
+  LT: {
+    code: '+370',
+    pattern: '^[0-9]{8}$',
+    example: '61234567',
+    flag: '🇱🇹',
+    name: 'Lithuania'
+  }
+};
+
 // Form validation schema using Yup
 const schema = yup.object().shape({
   operator: yup.string().required('Operator is required'),
@@ -75,14 +100,35 @@ const schema = yup.object().shape({
     then: () => yup.string().required('Connector type is required'),
     otherwise: () => yup.string()
   }),
-  email: yup.string().email('Please enter a valid email').required('Email is required'),
+  email: yup.string()
+    .required('Email is required')
+    .email('Please enter a valid email address (e.g., name@example.com)'),
   dateOfIssue: yup.string().required('Date of issue is required')
     .matches(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   stationId: yup.string(),
   description: yup.string().required('Description is required')
     .min(20, 'Description must be at least 20 characters'),
-  name: yup.string().required('Name is required'),
-  phoneNumber: yup.string().required('Phone number is required'),
+  name: yup.string()
+    .required('Name is required')
+    .test('valid-name', 'Please enter both your first name and surname', 
+      value => value ? value.trim().split(/\s+/).length >= 2 : false)
+    .test('name-length', 'Each name must be at least 2 characters long', 
+      value => value ? !value.trim().split(/\s+/).some(part => part.length < 2) : false)
+    .test('name-chars', 'Names can only contain letters, spaces, and hyphens', 
+      value => value ? /^[A-Za-z\s-]+$/.test(value) : false),
+  phoneCountry: yup.string().required('Country code is required'),
+  phoneNumber: yup.string()
+    .required('Phone number is required')
+    .test('valid-phone', 'Please enter a valid phone number', function(value) {
+      const { phoneCountry } = this.parent;
+      if (!value || !phoneCountry) return false;
+      
+      const countryInfo = COUNTRY_CODES[phoneCountry];
+      if (!countryInfo) return false;
+      
+      const regex = new RegExp(countryInfo.pattern);
+      return regex.test(value);
+    }),
   location: yup.string().required('Location is required'),
   consent: yup.boolean().oneOf([true], 'You must agree to the terms'),
 });
@@ -95,6 +141,11 @@ export default function ReportIssueForm() {
     message: '',
     severity: 'success'
   });
+  
+  // Custom validation state
+  const [phoneError, setPhoneError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [nameError, setNameError] = useState('');
 
   const {
     control,
@@ -117,6 +168,7 @@ export default function ReportIssueForm() {
       stationId: '',
       description: '',
       name: '',
+      phoneCountry: 'BG',
       phoneNumber: '',
       location: '',
       consent: false,
@@ -125,6 +177,114 @@ export default function ReportIssueForm() {
   
   // Watch the issueType to conditionally show fields
   const selectedIssueType = watch('issueType');
+  const selectedPhoneCountry = watch('phoneCountry');
+
+  // Format phone number based on country
+  const formatPhoneNumber = (value, country) => {
+    const countryInfo = COUNTRY_CODES[country];
+    if (!countryInfo) return value;
+    
+    const digitsOnly = value.replace(/\D/g, '');
+    const maxLength = country === 'LT' ? 8 : 9;
+    return digitsOnly.slice(0, maxLength);
+  };
+
+  // Validate phone number
+  const validatePhoneNumber = (number, country) => {
+    if (!number || !country) {
+      setPhoneError('Phone number is required');
+      return false;
+    }
+    
+    const countryInfo = COUNTRY_CODES[country];
+    if (!countryInfo) {
+      setPhoneError('Invalid country code');
+      return false;
+    }
+    
+    const regex = new RegExp(countryInfo.pattern);
+    if (!regex.test(number)) {
+      setPhoneError(`Please enter a valid phone number (e.g., ${countryInfo.example})`);
+      return false;
+    }
+    
+    setPhoneError('');
+    return true;
+  };
+
+  // Handle phone number input change
+  const handlePhoneChange = (e, field) => {
+    const value = e.target.value;
+    const formattedNumber = formatPhoneNumber(value, selectedPhoneCountry);
+    field.onChange(formattedNumber);
+    validatePhoneNumber(formattedNumber, selectedPhoneCountry);
+  };
+
+  // Handle country code change
+  const handleCountryChange = (e, field) => {
+    const newCountry = e.target.value;
+    field.onChange(newCountry);
+    setValue('phoneNumber', ''); // Clear phone number when country changes
+    setPhoneError(''); // Clear any existing phone errors
+  };
+
+  // Validate email
+  const validateEmail = (email) => {
+    if (!email) {
+      setEmailError('Email is required');
+      return false;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Please enter a valid email address (e.g., name@example.com)');
+      return false;
+    }
+    
+    setEmailError('');
+    return true;
+  };
+
+  // Validate name
+  const validateName = (name) => {
+    if (!name) {
+      setNameError('Name is required');
+      return false;
+    }
+    
+    const names = name.trim().split(/\s+/);
+    if (names.length < 2) {
+      setNameError('Please enter both your first name and surname');
+      return false;
+    }
+    
+    if (names.some(part => part.length < 2)) {
+      setNameError('Each name must be at least 2 characters long');
+      return false;
+    }
+    
+    if (!/^[A-Za-z\s-]+$/.test(name)) {
+      setNameError('Names can only contain letters, spaces, and hyphens');
+      return false;
+    }
+    
+    setNameError('');
+    return true;
+  };
+
+  // Validate name on change
+  const handleNameChange = (e, field) => {
+    const value = e.target.value;
+    field.onChange(value);
+    validateName(value);
+  };
+
+  // Validate email on change
+  const handleEmailChange = (e, field) => {
+    const value = e.target.value;
+    field.onChange(value);
+    validateEmail(value);
+  };
 
   // Reset conditional fields when issue type changes
   const handleIssueTypeChange = (e, field) => {
@@ -156,13 +316,56 @@ export default function ReportIssueForm() {
     setIsSubmitting(true);
     setSubmitStatus({ type: '', message: '' });
 
+    // Additional validation checks
+    let hasErrors = false;
+
+    // Validate name format
+    const names = data.name.trim().split(/\s+/);
+    if (names.length < 2) {
+      setValue('name', data.name, { shouldValidate: true });
+      hasErrors = true;
+    } else if (names.some(part => part.length < 2)) {
+      setValue('name', data.name, { shouldValidate: true });
+      hasErrors = true;
+    } else if (!/^[A-Za-z\s-]+$/.test(data.name)) {
+      setValue('name', data.name, { shouldValidate: true });
+      hasErrors = true;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      setValue('email', data.email, { shouldValidate: true });
+      hasErrors = true;
+    }
+
+    // Validate phone number
+    const countryInfo = COUNTRY_CODES[data.phoneCountry];
+    if (countryInfo) {
+      const phoneRegex = new RegExp(countryInfo.pattern);
+      if (!phoneRegex.test(data.phoneNumber)) {
+        setValue('phoneNumber', data.phoneNumber, { shouldValidate: true });
+        hasErrors = true;
+      }
+    }
+
+    // Don't proceed if there are validation errors
+    if (hasErrors) {
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/submit-issue', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          // Format phone number with country code for submission
+          phoneNumber: `${COUNTRY_CODES[data.phoneCountry].code}${data.phoneNumber}`
+        }),
       });
 
       const result = await response.json();
@@ -364,12 +567,14 @@ export default function ReportIssueForm() {
                 {...field}
                 type="text"
                 id="name"
-                className={`${styles.input} ${errors.name ? styles.errorInput : ''}`}
+                onChange={(e) => handleNameChange(e, field)}
+                className={`${styles.input} ${errors.name || nameError ? styles.errorInput : ''}`}
               />
             )}
           />
           {errors.name && <span className={styles.error}>{errors.name.message}</span>}
-          <span className={styles.inputInstruction}>Enter your full name</span>
+          {!errors.name && nameError && <span className={styles.error}>{nameError}</span>}
+          <span className={styles.inputInstruction}>Enter your first name and surname</span>
         </div>
 
         <div className={styles.formGroup}>
@@ -384,11 +589,13 @@ export default function ReportIssueForm() {
                 {...field}
                 type="email"
                 id="email"
-                className={`${styles.input} ${errors.email ? styles.errorInput : ''}`}
+                onChange={(e) => handleEmailChange(e, field)}
+                className={`${styles.input} ${errors.email || emailError ? styles.errorInput : ''}`}
               />
             )}
           />
           {errors.email && <span className={styles.error}>{errors.email.message}</span>}
+          {!errors.email && emailError && <span className={styles.error}>{emailError}</span>}
           <span className={styles.inputInstruction}>Enter your email address for communication</span>
         </div>
 
@@ -396,20 +603,41 @@ export default function ReportIssueForm() {
           <label htmlFor="phoneNumber">
             Phone Number <span className={styles.required}>*</span>
           </label>
-          <Controller
-            name="phoneNumber"
-            control={control}
-            render={({ field }) => (
-              <input
-                {...field}
-                type="tel"
-                id="phoneNumber"
-                className={`${styles.input} ${errors.phoneNumber ? styles.errorInput : ''}`}
-              />
-            )}
-          />
+          <div className={styles.phoneGroup}>
+            <Controller
+              name="phoneCountry"
+              control={control}
+              render={({ field }) => (
+                <select
+                  {...field}
+                  id="phoneCountry"
+                  onChange={(e) => handleCountryChange(e, field)}
+                  className={`${styles.select} ${errors.phoneCountry ? styles.errorInput : ''}`}
+                >
+                  <option value="BG">{COUNTRY_CODES.BG.flag} {COUNTRY_CODES.BG.code}</option>
+                  <option value="RO">{COUNTRY_CODES.RO.flag} {COUNTRY_CODES.RO.code}</option>
+                  <option value="LT">{COUNTRY_CODES.LT.flag} {COUNTRY_CODES.LT.code}</option>
+                </select>
+              )}
+            />
+            <Controller
+              name="phoneNumber"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  type="tel"
+                  id="phoneNumber"
+                  onChange={(e) => handlePhoneChange(e, field)}
+                  className={`${styles.input} ${styles.phoneInput} ${errors.phoneNumber || phoneError ? styles.errorInput : ''}`}
+                  inputMode="numeric"
+                />
+              )}
+            />
+          </div>
           {errors.phoneNumber && <span className={styles.error}>{errors.phoneNumber.message}</span>}
-          <span className={styles.inputInstruction}>Enter your phone number for contact purposes</span>
+          {!errors.phoneNumber && phoneError && <span className={styles.error}>{phoneError}</span>}
+          <span className={styles.inputInstruction}>Example: {COUNTRY_CODES[selectedPhoneCountry]?.example}</span>
         </div>
 
         <div className={styles.formGroup}>
@@ -588,4 +816,4 @@ export default function ReportIssueForm() {
       )}
     </div>
   );
-};
+}
