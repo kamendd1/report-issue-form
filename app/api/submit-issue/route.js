@@ -1,5 +1,44 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { formidable } from 'formidable';
+import fs from 'fs';
+import path from 'path';
+
+// For Next.js App Router, we need to export this config
+export const dynamic = 'force-dynamic';
+
+// Function to parse form data with files
+const parseFormData = async (req) => {
+  const options = { 
+    multiples: true,
+    keepExtensions: true,
+    maxFileSize: 10 * 1024 * 1024, // 10MB max file size
+  };
+  
+  return new Promise((resolve, reject) => {
+    const form = formidable(options);
+    const chunks = [];
+    
+    req.body.getReader().read().then(function processText({ done, value }) {
+      if (done) {
+        const buffer = Buffer.concat(chunks);
+        const stream = require('stream');
+        const readableStream = new stream.Readable();
+        readableStream.push(buffer);
+        readableStream.push(null);
+        
+        form.parse(readableStream, (err, fields, files) => {
+          if (err) return reject(err);
+          resolve({ fields, files });
+        });
+        return;
+      }
+      
+      chunks.push(Buffer.from(value));
+      return req.body.getReader().read().then(processText);
+    });
+  });
+};
 
 const issueTypeLabels = {
   charging_session: 'Charging session issues',
@@ -18,23 +57,25 @@ const issueTypeLabels = {
 
 export async function POST(request) {
   try {
-    const {
-      operator,
-      issueType,
-      otherIssueDescription,
-      chargerLabel,
-      chargerLocation,
-      connectorType,
-      email,
-      phoneNumber,
-      dateOfIssue,
-      stationId,
-      name,
-      location,
-      description,
-      consent,
-      operator: operatorName
-    } = await request.json();
+    // Since we're using FormData in the client, we can directly access it
+    const formData = await request.formData();
+    
+    // Extract form fields
+    const operator = formData.get('operator');
+    const issueType = formData.get('issueType');
+    const otherIssueDescription = formData.get('otherIssueDescription');
+    const chargerLabel = formData.get('chargerLabel');
+    const chargerLocation = formData.get('chargerLocation');
+    const connectorType = formData.get('connectorType');
+    const email = formData.get('email');
+    const phoneNumber = formData.get('phoneNumber');
+    const dateOfIssue = formData.get('dateOfIssue');
+    const stationId = formData.get('stationId');
+    const name = formData.get('name');
+    const location = formData.get('location');
+    const description = formData.get('description');
+    const consent = formData.get('consent');
+    const fileCount = formData.get('fileCount');
 
     // Get the issue type label
     const issueTypeLabel = issueTypeLabels[issueType] || 'Unknown Issue Type';
@@ -43,7 +84,7 @@ export async function POST(request) {
     const date = new Date(dateOfIssue);
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, ''); // Format: YYYYMMDD
     const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
-    const ticketNumber = `${operatorName || 'XX'}-${dateStr}-${randomNum}`;
+    const ticketNumber = `${operator || 'XX'}-${dateStr}-${randomNum}`;
 
     // Create Nodemailer transporter
     const transporter = nodemailer.createTransport({
@@ -56,12 +97,28 @@ export async function POST(request) {
       },
     });
 
+    // Prepare email attachments
+    const attachments = [];
+    
+    // Process file uploads
+    for (let i = 0; i < parseInt(fileCount || 0); i++) {
+      const file = formData.get(`file${i}`);
+      if (file && file instanceof File) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        attachments.push({
+          filename: file.name,
+          content: buffer,
+          contentType: file.type,
+        });
+      }
+    }
+
     // Prepare email content
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: process.env.EMAIL_TO || 'support@eldrive.eu',
       replyTo: email,
-      subject: `Issue Type (${operatorName}): ${issueTypeLabel} - Ticket #${ticketNumber}`,
+      subject: `Issue Type (${operator}): ${issueTypeLabel} - Ticket #${ticketNumber}`,
       text: `
 Ticket Number: ${ticketNumber}
 
@@ -77,6 +134,8 @@ Location: ${location || 'Not provided'}
 
 Describe the Issue:
 ${description}
+
+${attachments.length > 0 ? `Attachments: ${attachments.length} file(s) attached\n` : ''}
 
 From AMPECO
       `,
@@ -143,6 +202,12 @@ From AMPECO
       <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Location:</strong></td>
       <td style="padding: 8px; border-bottom: 1px solid #eee;">${location || 'Not provided'}</td>
     </tr>
+    ${attachments.length > 0 ? `
+    <tr>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Attachments:</strong></td>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${attachments.length} file(s) attached</td>
+    </tr>
+    ` : ''}
   </table>
   
   <h3 style="color: #555;">Issue Description</h3>
@@ -157,6 +222,7 @@ From AMPECO
   </div>
 </div>
       `,
+      attachments,
     };
 
     // Send email

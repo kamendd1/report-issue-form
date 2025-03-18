@@ -136,16 +136,10 @@ const schema = yup.object().shape({
 export default function ReportIssueForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
-  
-  // Custom validation state
-  const [phoneError, setPhoneError] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [nameError, setNameError] = useState('');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [files, setFiles] = useState([]);
+  const [selectedPhoneCountry, setSelectedPhoneCountry] = useState('BG');
+  const [selectedIssueType, setSelectedIssueType] = useState('');
 
   const {
     control,
@@ -176,8 +170,8 @@ export default function ReportIssueForm() {
   });
   
   // Watch the issueType to conditionally show fields
-  const selectedIssueType = watch('issueType');
-  const selectedPhoneCountry = watch('phoneCountry');
+  const issueType = watch('issueType');
+  const phoneCountry = watch('phoneCountry');
 
   // Format phone number based on country
   const formatPhoneNumber = (value, country) => {
@@ -192,32 +186,27 @@ export default function ReportIssueForm() {
   // Validate phone number
   const validatePhoneNumber = (number, country) => {
     if (!number || !country) {
-      setPhoneError('Phone number is required');
-      return false;
+      return 'Phone number is required';
     }
     
     const countryInfo = COUNTRY_CODES[country];
     if (!countryInfo) {
-      setPhoneError('Invalid country code');
-      return false;
+      return 'Invalid country code';
     }
     
     const regex = new RegExp(countryInfo.pattern);
     if (!regex.test(number)) {
-      setPhoneError(`Please enter a valid phone number (e.g., ${countryInfo.example})`);
-      return false;
+      return `Please enter a valid phone number (e.g., ${countryInfo.example})`;
     }
     
-    setPhoneError('');
-    return true;
+    return '';
   };
 
   // Handle phone number input change
   const handlePhoneChange = (e, field) => {
     const value = e.target.value;
-    const formattedNumber = formatPhoneNumber(value, selectedPhoneCountry);
+    const formattedNumber = formatPhoneNumber(value, phoneCountry);
     field.onChange(formattedNumber);
-    validatePhoneNumber(formattedNumber, selectedPhoneCountry);
   };
 
   // Handle country code change
@@ -225,65 +214,54 @@ export default function ReportIssueForm() {
     const newCountry = e.target.value;
     field.onChange(newCountry);
     setValue('phoneNumber', ''); // Clear phone number when country changes
-    setPhoneError(''); // Clear any existing phone errors
   };
 
   // Validate email
   const validateEmail = (email) => {
     if (!email) {
-      setEmailError('Email is required');
-      return false;
+      return 'Email is required';
     }
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setEmailError('Please enter a valid email address (e.g., name@example.com)');
-      return false;
+      return 'Please enter a valid email address (e.g., name@example.com)';
     }
     
-    setEmailError('');
-    return true;
+    return '';
   };
 
   // Validate name
   const validateName = (name) => {
     if (!name) {
-      setNameError('Name is required');
-      return false;
+      return 'Name is required';
     }
     
     const names = name.trim().split(/\s+/);
     if (names.length < 2) {
-      setNameError('Please enter both your first name and surname');
-      return false;
+      return 'Please enter both your first name and surname';
     }
     
     if (names.some(part => part.length < 2)) {
-      setNameError('Each name must be at least 2 characters long');
-      return false;
+      return 'Each name must be at least 2 characters long';
     }
     
     if (!/^[A-Za-z\s-]+$/.test(name)) {
-      setNameError('Names can only contain letters, spaces, and hyphens');
-      return false;
+      return 'Names can only contain letters, spaces, and hyphens';
     }
     
-    setNameError('');
-    return true;
+    return '';
   };
 
   // Validate name on change
   const handleNameChange = (e, field) => {
     const value = e.target.value;
     field.onChange(value);
-    validateName(value);
   };
 
   // Validate email on change
   const handleEmailChange = (e, field) => {
     const value = e.target.value;
     field.onChange(value);
-    validateEmail(value);
   };
 
   // Reset conditional fields when issue type changes
@@ -356,16 +334,28 @@ export default function ReportIssueForm() {
     }
 
     try {
+      // Create FormData object to handle file uploads
+      const formData = new FormData();
+      
+      // Add all form fields to FormData
+      Object.keys(data).forEach(key => {
+        formData.append(key, data[key]);
+      });
+      
+      // Format phone number with country code for submission
+      formData.set('phoneNumber', `${COUNTRY_CODES[data.phoneCountry].code}${data.phoneNumber}`);
+      
+      // Add files to FormData
+      if (files.length > 0) {
+        files.forEach((file, index) => {
+          formData.append(`file${index}`, file);
+        });
+        formData.append('fileCount', files.length);
+      }
+
       const response = await fetch('/api/submit-issue', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...data,
-          // Format phone number with country code for submission
-          phoneNumber: `${COUNTRY_CODES[data.phoneCountry].code}${data.phoneNumber}`
-        }),
+        body: formData,
       });
 
       const result = await response.json();
@@ -464,7 +454,7 @@ export default function ReportIssueForm() {
           <span className={styles.inputInstruction}>Select the type of issue you're experiencing</span>
         </div>
 
-        {selectedIssueType === 'other' && (
+        {issueType === 'other' && (
           <div className={styles.formGroup}>
             <label htmlFor="otherIssueDescription">
               Issue Description <span className={styles.required}>*</span>
@@ -485,7 +475,7 @@ export default function ReportIssueForm() {
           </div>
         )}
 
-        {requiresChargerInfo(selectedIssueType) && (
+        {requiresChargerInfo(issueType) && (
           <>
             <div className={styles.formGroup}>
               <label htmlFor="chargerLabel">
@@ -529,7 +519,7 @@ export default function ReportIssueForm() {
           </>
         )}
 
-        {requiresConnectorInfo(selectedIssueType) && (
+        {requiresConnectorInfo(issueType) && (
           <div className={styles.formGroup}>
             <label htmlFor="connectorType">
               Connector Type <span className={styles.required}>*</span>
@@ -568,12 +558,11 @@ export default function ReportIssueForm() {
                 type="text"
                 id="name"
                 onChange={(e) => handleNameChange(e, field)}
-                className={`${styles.input} ${errors.name || nameError ? styles.errorInput : ''}`}
+                className={`${styles.input} ${errors.name ? styles.errorInput : ''}`}
               />
             )}
           />
           {errors.name && <span className={styles.error}>{errors.name.message}</span>}
-          {!errors.name && nameError && <span className={styles.error}>{nameError}</span>}
           <span className={styles.inputInstruction}>Enter your first name and surname</span>
         </div>
 
@@ -590,12 +579,11 @@ export default function ReportIssueForm() {
                 type="email"
                 id="email"
                 onChange={(e) => handleEmailChange(e, field)}
-                className={`${styles.input} ${errors.email || emailError ? styles.errorInput : ''}`}
+                className={`${styles.input} ${errors.email ? styles.errorInput : ''}`}
               />
             )}
           />
           {errors.email && <span className={styles.error}>{errors.email.message}</span>}
-          {!errors.email && emailError && <span className={styles.error}>{emailError}</span>}
           <span className={styles.inputInstruction}>Enter your email address for communication</span>
         </div>
 
@@ -629,15 +617,14 @@ export default function ReportIssueForm() {
                   type="tel"
                   id="phoneNumber"
                   onChange={(e) => handlePhoneChange(e, field)}
-                  className={`${styles.input} ${styles.phoneInput} ${errors.phoneNumber || phoneError ? styles.errorInput : ''}`}
+                  className={`${styles.input} ${styles.phoneInput} ${errors.phoneNumber ? styles.errorInput : ''}`}
                   inputMode="numeric"
                 />
               )}
             />
           </div>
           {errors.phoneNumber && <span className={styles.error}>{errors.phoneNumber.message}</span>}
-          {!errors.phoneNumber && phoneError && <span className={styles.error}>{phoneError}</span>}
-          <span className={styles.inputInstruction}>Example: {COUNTRY_CODES[selectedPhoneCountry]?.example}</span>
+          <span className={styles.inputInstruction}>Example: {COUNTRY_CODES[phoneCountry]?.example}</span>
         </div>
 
         <div className={styles.formGroup}>
@@ -681,7 +668,7 @@ export default function ReportIssueForm() {
           <span className={styles.inputInstruction}>Select the date when the issue occurred</span>
         </div>
 
-        {!requiresChargerInfo(selectedIssueType) && (
+        {!requiresChargerInfo(issueType) && (
           <div className={styles.formGroup}>
             <label htmlFor="stationId">
               Station ID <span className={styles.optional}>(optional)</span>
@@ -759,6 +746,7 @@ export default function ReportIssueForm() {
                       ? '1 file selected'
                       : `${fileCount} files selected`;
                 }
+                setFiles(Array.from(e.target.files || []));
               }}
               className={styles.input}
             />
