@@ -1,44 +1,8 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { formidable } from 'formidable';
-import fs from 'fs';
-import path from 'path';
 
 // For Next.js App Router, we need to export this config
 export const dynamic = 'force-dynamic';
-
-// Function to parse form data with files
-const parseFormData = async (req) => {
-  const options = { 
-    multiples: true,
-    keepExtensions: true,
-    maxFileSize: 10 * 1024 * 1024, // 10MB max file size
-  };
-  
-  return new Promise((resolve, reject) => {
-    const form = formidable(options);
-    const chunks = [];
-    
-    req.body.getReader().read().then(function processText({ done, value }) {
-      if (done) {
-        const buffer = Buffer.concat(chunks);
-        const stream = require('stream');
-        const readableStream = new stream.Readable();
-        readableStream.push(buffer);
-        readableStream.push(null);
-        
-        form.parse(readableStream, (err, fields, files) => {
-          if (err) return reject(err);
-          resolve({ fields, files });
-        });
-        return;
-      }
-      
-      chunks.push(Buffer.from(value));
-      return req.body.getReader().read().then(processText);
-    });
-  });
-};
 
 const issueTypeLabels = {
   charging_session: 'Charging session issues',
@@ -75,7 +39,7 @@ export async function POST(request) {
     const location = formData.get('location');
     const description = formData.get('description');
     const consent = formData.get('consent');
-    const fileCount = formData.get('fileCount');
+    const fileCount = parseInt(formData.get('fileCount') || '0');
 
     // Get the issue type label
     const issueTypeLabel = issueTypeLabels[issueType] || 'Unknown Issue Type';
@@ -101,21 +65,21 @@ export async function POST(request) {
     const attachments = [];
     
     // Process file uploads
-    for (let i = 0; i < parseInt(fileCount || 0); i++) {
+    for (let i = 0; i < fileCount; i++) {
       const file = formData.get(`file${i}`);
-      if (file && file instanceof File) {
+      if (file && file instanceof Blob) {
         const buffer = Buffer.from(await file.arrayBuffer());
         attachments.push({
-          filename: file.name,
+          filename: file.name || `attachment-${i + 1}.${file.type.split('/')[1] || 'png'}`,
           content: buffer,
-          contentType: file.type,
+          contentType: file.type || 'application/octet-stream',
         });
       }
     }
 
     // Prepare email content
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: process.env.EMAIL_FROM || 'noreply@example.com',
       to: process.env.EMAIL_TO || 'support@eldrive.eu',
       replyTo: email,
       subject: `Issue Type (${operator}): ${issueTypeLabel} - Ticket #${ticketNumber}`,

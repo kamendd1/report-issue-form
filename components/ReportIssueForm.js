@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -140,6 +140,8 @@ export default function ReportIssueForm() {
   const [files, setFiles] = useState([]);
   const [selectedPhoneCountry, setSelectedPhoneCountry] = useState('BG');
   const [selectedIssueType, setSelectedIssueType] = useState('');
+
+  const router = useRouter();
 
   const {
     control,
@@ -291,87 +293,64 @@ export default function ReportIssueForm() {
   };
 
   const onSubmit = async (data) => {
-    setIsSubmitting(true);
-    setSubmitStatus({ type: '', message: '' });
-
-    // Additional validation checks
-    let hasErrors = false;
-
-    // Validate name format
-    const names = data.name.trim().split(/\s+/);
-    if (names.length < 2) {
-      setValue('name', data.name, { shouldValidate: true });
-      hasErrors = true;
-    } else if (names.some(part => part.length < 2)) {
-      setValue('name', data.name, { shouldValidate: true });
-      hasErrors = true;
-    } else if (!/^[A-Za-z\s-]+$/.test(data.name)) {
-      setValue('name', data.name, { shouldValidate: true });
-      hasErrors = true;
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
-      setValue('email', data.email, { shouldValidate: true });
-      hasErrors = true;
-    }
-
-    // Validate phone number
-    const countryInfo = COUNTRY_CODES[data.phoneCountry];
-    if (countryInfo) {
-      const phoneRegex = new RegExp(countryInfo.pattern);
-      if (!phoneRegex.test(data.phoneNumber)) {
-        setValue('phoneNumber', data.phoneNumber, { shouldValidate: true });
-        hasErrors = true;
-      }
-    }
-
-    // Don't proceed if there are validation errors
-    if (hasErrors) {
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      // Create FormData object to handle file uploads
+      setIsSubmitting(true);
+      
+      // Create FormData object
       const formData = new FormData();
       
-      // Add all form fields to FormData
-      Object.keys(data).forEach(key => {
-        formData.append(key, data[key]);
+      // Append all form fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          formData.append(key, value);
+        }
       });
       
-      // Format phone number with country code for submission
-      formData.set('phoneNumber', `${COUNTRY_CODES[data.phoneCountry].code}${data.phoneNumber}`);
-      
-      // Add files to FormData
+      // Append files
       if (files.length > 0) {
-        files.forEach((file, index) => {
+        formData.append('fileCount', files.length.toString());
+        Array.from(files).forEach((file, index) => {
           formData.append(`file${index}`, file);
         });
-        formData.append('fileCount', files.length);
+      } else {
+        formData.append('fileCount', '0');
       }
-
+      
+      // Send form data to API
       const response = await fetch('/api/submit-issue', {
         method: 'POST',
         body: formData,
       });
-
+      
       const result = await response.json();
-
+      
       if (response.ok) {
-        // Use window.location for client-side navigation
-        window.location.href = `/success?ticket=${result.ticketNumber}`;
+        // Success - redirect to success page with ticket number
+        router.push(`/success?ticket=${result.ticketNumber}`);
       } else {
-        throw new Error(result.error || 'Failed to submit issue');
+        // Error
+        setSubmitStatus({
+          type: 'error',
+          message: result.error || 'Failed to submit form. Please try again.'
+        });
+        setSnackbar({
+          open: true,
+          message: result.error || 'Failed to submit form. Please try again.',
+          severity: 'error'
+        });
+        setIsSubmitting(false);
       }
     } catch (error) {
+      console.error('Error submitting form:', error);
       setSubmitStatus({
         type: 'error',
-        message: error.message,
+        message: 'An unexpected error occurred. Please try again.'
       });
-    } finally {
+      setSnackbar({
+        open: true,
+        message: 'An unexpected error occurred. Please try again.',
+        severity: 'error'
+      });
       setIsSubmitting(false);
     }
   };
